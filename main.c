@@ -52,23 +52,23 @@ int main(void)
         {
             strcpy(iface->name, value);
         }
-	if (strcmp(key, "ip") == 0)
+	else if (strcmp(key, "ip") == 0)
         {
 	    strcpy(iface->ip, value);
 	}
-         if (strcmp(key, "mask") == 0)
+	else if (strcmp(key, "mask") == 0)
         {
 	    strcpy(iface->mask, value);
 	}
-        if (strcmp(key, "gateway") == 0)
+	else if (strcmp(key, "gateway") == 0)
         {
 	    strcpy(iface->gateway, value);
 	}
-        if (strcmp(key, "vlan") == 0)
+	else if (strcmp(key, "vlan") == 0)
         {
 	    iface->vlan = atoi(value);
 	}
-	if (strcmp(key, "mtu") == 0)
+	else if (strcmp(key, "mtu") == 0)
         {
 	    iface->mtu = atoi(value);
 	}
