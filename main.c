@@ -7,34 +7,81 @@ struct Interface
     char name[16];
     char ip[16];
     char mask[16];
+    char gateway[16];
     int vlan;
     int mtu;
 };
 
+
 int main(void)
 {
+    FILE *file;
+    char line[256];
     struct Interface *iface;
 
     iface = malloc(sizeof(*iface));
 
-    if (iface == NULL)
+    if(iface == NULL)
     {
         printf("Memory allocation failed\n");
-        return 1;
+	return 1;
     }
 
-    strcpy(iface->name, "eth0");
-    strcpy(iface->ip, "192.168.1.10");
-    strcpy(iface->mask, "255.255.255.0");
+    file = fopen("config/network.conf", "r");
 
-    iface->vlan = 10;
-    iface->mtu = 1500;
+    if (file == NULL)
+    {
+        printf("Failed to open configuration file\n");
+        return 1;
+    }
+    while (fgets(line, sizeof(line), file) != NULL)
+    {
+        char *key;
+        char *value;
 
-    printf("Interface : %s\n", iface->name);
-    printf("IP        : %s\n", iface->ip);
-    printf("Mask      : %s\n", iface->mask);
-    printf("VLAN      : %d\n", iface->vlan);
-    printf("MTU       : %d\n", iface->mtu);
+        key = strtok(line, " \n");
+        value = strtok(NULL, " \n");
+
+        if (key != NULL && value != NULL)
+        {
+            printf("Key   : %s\n", key);
+            printf("Value : %s\n", value);
+        }
+
+	if (strcmp(key, "interface") == 0)
+        {
+            strcpy(iface->name, value);
+        }
+	if (strcmp(key, "ip") == 0)
+        {
+	    strcpy(iface->ip, value);
+	}
+         if (strcmp(key, "mask") == 0)
+        {
+	    strcpy(iface->mask, value);
+	}
+        if (strcmp(key, "gateway") == 0)
+        {
+	    strcpy(iface->gateway, value);
+	}
+        if (strcmp(key, "vlan") == 0)
+        {
+	    iface->vlan = atoi(value);
+	}
+	if (strcmp(key, "mtu") == 0)
+        {
+	    iface->mtu = atoi(value);
+	}
+    }
+    
+    printf("Interface name: %s\n", iface->name);
+    printf("Ip Address: %s\n", iface->ip);
+    printf("Mask address: %s\n", iface->mask);
+    printf("Gateway address: %s\n", iface->gateway);
+    printf("Vlan number: %d\n", iface->vlan);
+    printf("Mtu value: %d\n", iface->mtu);
+
+    fclose(file);
 
     free(iface);
     iface = NULL;
