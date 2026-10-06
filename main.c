@@ -18,8 +18,10 @@ int main(void)
     FILE *file;
     char line[256];
     struct Interface *iface;
+    char *end;
+    long vlan;
 
-    iface = malloc(sizeof(*iface));
+    iface = calloc(1, sizeof(*iface));
 
     if(iface == NULL)
     {
@@ -32,6 +34,7 @@ int main(void)
     if (file == NULL)
     {
         printf("Failed to open configuration file\n");
+	free(iface);
         return 1;
     }
     while (fgets(line, sizeof(line), file) != NULL)
@@ -46,34 +49,47 @@ int main(void)
         {
             printf("Key   : %s\n", key);
             printf("Value : %s\n", value);
-        }
+        
+	    if (strcmp(key, "interface") == 0)
+	    {
+		    strcpy(iface->name, value);
+	    }
+	    else if (strcmp(key, "ip") == 0)
+	    {
+		    strcpy(iface->ip, value);
+	    }
+	    else if (strcmp(key, "mask") == 0)
+	    {
+		    strcpy(iface->mask, value);
+	    }
+	    else if (strcmp(key, "gateway") == 0)
+	    {
+		    strcpy(iface->gateway, value);
+	    }
+	    else if (strcmp(key, "vlan") == 0)
+	    {
+		    vlan = strtol(value, &end, 10);
 
-	if (strcmp(key, "interface") == 0)
-        {
-            strcpy(iface->name, value);
-        }
-	else if (strcmp(key, "ip") == 0)
-        {
-	    strcpy(iface->ip, value);
-	}
-	else if (strcmp(key, "mask") == 0)
-        {
-	    strcpy(iface->mask, value);
-	}
-	else if (strcmp(key, "gateway") == 0)
-        {
-	    strcpy(iface->gateway, value);
-	}
-	else if (strcmp(key, "vlan") == 0)
-        {
-	    iface->vlan = atoi(value);
-	}
-	else if (strcmp(key, "mtu") == 0)
-        {
-	    iface->mtu = atoi(value);
+		    if (*end != '\0')
+	            {
+                        printf("Invalid VLAN value: %s\n", value);
+	            }
+		    else if (vlan < 1 || vlan > 4094)
+                    {
+                        printf("VLAN out of range: %ld\n", vlan);
+                    }
+		    else
+		    {
+		        iface->vlan = vlan;
+		    }
+	    }
+	    else if (strcmp(key, "mtu") == 0)
+	    {
+		    iface->mtu = atoi(value);
+	    }
 	}
     }
-    
+
     printf("Interface name: %s\n", iface->name);
     printf("Ip Address: %s\n", iface->ip);
     printf("Mask address: %s\n", iface->mask);
