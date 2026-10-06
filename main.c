@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <arpa/inet.h>
+#include <stdint.h>
 
 struct Interface
 {
@@ -20,7 +22,12 @@ int main(void)
     struct Interface *iface;
     char *end;
     long vlan;
+    long mtu;
     int config_valid = 1;
+    struct in_addr addr;
+    struct in_addr mask_addr;
+    uint32_t mask;
+    uint32_t inverse;
 
     iface = calloc(1, sizeof(*iface));
 
@@ -55,18 +62,61 @@ int main(void)
 	    {
 		    strcpy(iface->name, value);
 	    }
+
 	    else if (strcmp(key, "ip") == 0)
 	    {
-		    strcpy(iface->ip, value);
-	    }
+                  if (inet_pton(AF_INET, value, &addr) != 1)
+                  {
+                      printf("Invalid IP address: %s\n", value);
+                      config_valid = 0;
+                  }
+
+                  else
+                  {
+                      strcpy(iface->ip, value);
+                  }
+            }
+
 	    else if (strcmp(key, "mask") == 0)
 	    {
-		    strcpy(iface->mask, value);
+		    if (inet_pton(AF_INET, value, &mask_addr) != 1)
+                    {
+                        printf("Invalid subnet mask: %s\n", value);
+                        config_valid = 0;
+                    }
+
+                    else
+                    {
+                        mask = ntohl(mask_addr.s_addr);
+                        inverse = ~mask;
+
+			if ((inverse & (inverse + 1)) != 0)
+                        {
+                            printf("Invalid subnet mask: %s\n", value);
+                            config_valid = 0;
+                        }
+
+                        else
+                        {
+                            strcpy(iface->mask, value);
+                        }
+	            }
 	    }
+
 	    else if (strcmp(key, "gateway") == 0)
-	    {
-		    strcpy(iface->gateway, value);
-	    }
+            {
+                  if (inet_pton(AF_INET, value, &addr) != 1)
+                  {
+                      printf("Invalid gateway address: %s\n", value);
+                      config_valid = 0;
+		  }
+
+		  else
+	          {
+		      strcpy(iface->gateway, value);
+	          }
+            }
+
 	    else if (strcmp(key, "vlan") == 0)
 	    {
 		    vlan = strtol(value, &end, 10);
@@ -76,20 +126,41 @@ int main(void)
                         printf("Invalid VLAN value: %s\n", value);
 			config_valid = 0;
 	            }
+
 		    else if (vlan < 1 || vlan > 4094)
                     {
                         printf("VLAN out of range: %ld\n", vlan);
 			config_valid = 0;
                     }
+
 		    else
 		    {
 		        iface->vlan = vlan;
 		    }
 	    }
+
 	    else if (strcmp(key, "mtu") == 0)
-	    {
-		    iface->mtu = atoi(value);
+            {
+		    mtu = strtol(value, &end, 10);
+
+		    if (*end != '\0')
+	            {
+                        printf("Invalid mtu value: %s\n", value);
+			config_valid = 0;
+	            }
+
+		    else if (mtu < 576 || mtu > 9000)
+		    {
+                        printf("MTU out of range: %ld\n", mtu);
+			config_valid = 0;
+		    }
+
+		    else
+		    {
+			iface->mtu = mtu;
+		    }
 	    }
+
 	}
     }
 
