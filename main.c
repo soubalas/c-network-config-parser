@@ -20,6 +20,7 @@ int main(void)
     struct Interface *iface;
     char *end;
     long vlan;
+    int config_valid = 1;
 
     iface = calloc(1, sizeof(*iface));
 
@@ -73,10 +74,12 @@ int main(void)
 		    if (*end != '\0')
 	            {
                         printf("Invalid VLAN value: %s\n", value);
+			config_valid = 0;
 	            }
 		    else if (vlan < 1 || vlan > 4094)
                     {
                         printf("VLAN out of range: %ld\n", vlan);
+			config_valid = 0;
                     }
 		    else
 		    {
@@ -88,6 +91,14 @@ int main(void)
 		    iface->mtu = atoi(value);
 	    }
 	}
+    }
+
+    if (!config_valid)
+    {
+        printf("Configuration parsing failed\n");
+        fclose(file);
+        free(iface);
+        return 1;
     }
 
     printf("Interface name: %s\n", iface->name);
