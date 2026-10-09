@@ -3,6 +3,8 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <stdint.h>
+#include <errno.h>
+#include <limits.h>
 
 struct Interface
 {
@@ -13,15 +15,6 @@ struct Interface
 	int vlan;
 	int mtu;
 };
-
-
-int interface_seen = 0;
-int ip_seen = 0;
-int mask_seen = 0;
-int gateway_seen = 0;
-int vlan_seen = 0;
-int mtu_seen = 0;
-
 
 int main(void)
 {
@@ -36,6 +29,13 @@ int main(void)
 	struct in_addr mask_addr;
 	uint32_t mask;
 	uint32_t inverse;
+	int interface_seen = 0;
+	int ip_seen = 0;
+	int mask_seen = 0;
+	int gateway_seen = 0;
+	int vlan_seen = 0;
+	int mtu_seen = 0;
+	size_t length;
 
 	iface = calloc(1, sizeof(*iface));
 
@@ -53,24 +53,46 @@ int main(void)
 		free(iface);
 		return 1;
 	}
+
 	while (fgets(line, sizeof(line), file) != NULL)
 	{
 		char *key;
 		char *value;
+		char *extra_value;
 
-		key = strtok(line, " \n");
-		value = strtok(NULL, " \n");
+		key = strtok(line, " \t\r\n");
+		value = strtok(NULL, " \t\r\n");
+		extra_value = strtok(NULL, " \t\r\n");
 
-		if (key != NULL && value != NULL)
+		if (key == NULL)
+		{
+			continue;
+		}
+
+		else if (value == NULL || extra_value != NULL)
+		{
+			printf("Invalid configuration line\n");
+			config_valid = 0;
+		}
+
+		else
 		{
 			printf("Key   : %s\n", key);
 			printf("Value : %s\n", value);
 
 			if (strcmp(key, "interface") == 0)
 			{
+				length = strlen(value);
+
 				if (interface_seen)
 				{
 					printf("Duplicate configuration key: interface\n");
+					config_valid = 0;
+				}
+
+				else if (length >= 16)
+				{
+					printf("Interface name too long (maximum 15 characters)\n");
 					config_valid = 0;
 				}
 
@@ -166,11 +188,15 @@ int main(void)
 
 				else
 				{
-
+					errno = 0;
 					vlan = strtol(value, &end, 10);
 
-					if (*end != '\0')
-					{
+					if (errno == ERANGE) {
+						printf("VLAN value is too large or too small: %s\n", value);
+						config_valid = 0;
+					}
+
+					else if (end == value || *end != '\0') {
 						printf("Invalid VLAN value: %s\n", value);
 						config_valid = 0;
 					}
@@ -183,7 +209,7 @@ int main(void)
 
 					else
 					{
-						iface->vlan = vlan;
+						iface->vlan = (int)vlan;
 						vlan_seen = 1;
 					}
 				}
@@ -199,11 +225,16 @@ int main(void)
 
 				else
 				{
+					errno = 0;
 					mtu = strtol(value, &end, 10);
 
-					if (*end != '\0')
-					{
-						printf("Invalid mtu value: %s\n", value);
+					if (errno == ERANGE) {
+						printf("MTU value is too large or too small: %s\n", value);
+						config_valid = 0;
+					}
+
+					else if (end == value || *end != '\0') {
+						printf("Invalid MTU value: %s\n", value);
 						config_valid = 0;
 					}
 
@@ -215,7 +246,7 @@ int main(void)
 
 					else
 					{
-						iface->mtu = mtu;
+						iface->mtu = (int)mtu;
 						mtu_seen = 1;
 					}
 				}
