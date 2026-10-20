@@ -1,21 +1,27 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include <stdint.h>
-#include <errno.h>
-#include <limits.h>
 
-struct Interface
+#include "interface.h"
+#include "parser.h"
+
+int main(void)
 {
-	char name[16];
-	char ip[16];
-	char mask[16];
-	char gateway[16];
-	int vlan;
-	int mtu;
-};
+    struct Interface iface = {0};
 
+    if (parse_config("config/network.conf", &iface) != 0) {
+        return 1;
+    }
+
+    printf("Interface name: %s\n", iface.name);
+    printf("IP Address: %s\n", iface.ip);
+    printf("Mask address: %s\n", iface.mask);
+    printf("Gateway address: %s\n", iface.gateway);
+    printf("VLAN number: %d\n", iface.vlan);
+    printf("MTU value: %d\n", iface.mtu);
+
+    return 0;
+}
+
+/*
 int main(void)
 {
 	FILE *file;
@@ -319,3 +325,4 @@ int main(void)
 
 	return 0;
 }
+*/
