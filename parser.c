@@ -92,11 +92,43 @@ int parse_config(const char *filename, struct Interface *iface)
 		char *extra_value;
 
 		/*
+		 * Check whether fgets() filled the buffer without
+		 * reading a newline character.
+		 */
+		size_t len = strlen(line);
+
+		if (len == sizeof(line) - 1 && line[len - 1] != '\n')
+		{
+			int ch = fgetc(file);
+
+			/*
+			 * If the next character is neither a newline nor EOF,
+			 * the physical line contains more data than the buffer
+			 * can hold.
+			 */
+
+			if (ch != '\n' && ch != EOF)
+			{
+				fprintf(stderr, "Configuration line too long\n");
+				config_valid = 0;
+
+				/* Discard the remaining characters of this line. */
+				while ((ch = fgetc(file)) != '\n' && ch != EOF)
+				{
+				}
+
+				/* Skip tokenization of this invalid line. */
+				continue;
+			}
+		}
+
+		/*
 		 * Split the input into whitespace-separated tokens.
 		 *
 		 * A valid configuration entry contains exactly two tokens:
 		 * a configuration key and its corresponding value.
 		 */
+
 		key = strtok(line, " \t\r\n");
 		value = strtok(NULL, " \t\r\n");
 		extra_value = strtok(NULL, " \t\r\n");

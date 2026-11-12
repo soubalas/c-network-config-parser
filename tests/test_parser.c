@@ -1,257 +1,246 @@
-#include <assert.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "../parser.h"
 
-/*
- * Test VLAN boundary values by generating a temporary configuration file.
- *
- * Parameters:
- *   vlan            - VLAN ID to test.
- *   expected_result - Expected parser return value:
- *                     0 for valid input, -1 for invalid input.
- *
- * Verifies that the parser accepts valid VLAN IDs and rejects values
- * outside the supported range (1-4094).
- *
- * The temporary configuration file is removed after each test.
- */
+/* Count completed test cases, not individual conditions. */
+static int tests_passed = 0;
+static int tests_failed = 0;
 
+/* Report one test case and update the summary counters. */
+static void record_test(const char *test_name, int passed)
+{
+	if (passed) {
+		++tests_passed;
+		printf("PASS: %s\n", test_name);
+	} else {
+		++tests_failed;
+		printf("FAIL: %s\n", test_name);
+	}
+}
+
+/* Display the final summary after every test has run. */
+static void print_test_summary(void)
+{
+	printf("\n================================\n");
+	printf("       TEST SUMMARY\n");
+	printf("================================\n");
+	printf("Total tests  : %d\n", tests_passed + tests_failed);
+	printf("Passed tests : %d\n", tests_passed);
+	printf("Failed tests : %d\n", tests_failed);
+	printf("================================\n");
+	printf("%s\n", tests_failed == 0 ? "ALL TESTS PASSED" : "SOME TESTS FAILED");
+}
+
+/* Parse a fixture and verify its expected return value. */
+static void test_fixture(const char *filename, const char *name,
+                         int expected_result)
+{
+	struct Interface iface = {0};
+	int result = parse_config(filename, &iface);
+	record_test(name, result == expected_result);
+}
+
+/* Test a valid configuration and verify the parsed fields. */
+static void test_valid_configuration(void)
+{
+	struct Interface iface = {0};
+	int result = parse_config("config/network.conf", &iface);
+
+	record_test("Valid configuration parsed successfully",
+			result == 0 &&
+			strcmp(iface.name, "eth0") == 0 &&
+			strcmp(iface.ip, "192.168.1.10") == 0 &&
+			iface.vlan == 10 &&
+			iface.mtu == 1500);
+}
+
+/*
+ * Test VLAN boundaries using a temporary configuration file.
+ * Expected result: 0 for valid VLANs, -1 for invalid VLANs.
+ */
 static void test_vlan_boundary(int vlan, int expected_result)
 {
 	const char *filename = "tests/temp_vlan.conf";
-
-	FILE *file = fopen(filename, "w");
-	assert(file != NULL);
-
-	fprintf(file,
-			"interface eth0\n"
-			"ip 192.168.1.10\n"
-			"mask 255.255.255.0\n"
-			"gateway 192.168.1.1\n"
-			"vlan %d\n"
-			"mtu 1500\n",
-			vlan);
-
-	assert(fclose(file) == 0);
-
+	char name[80];
 	struct Interface iface = {0};
+	int passed = 1;
+	FILE *file = fopen(filename, "w");
 
-	int result = parse_config(filename, &iface);
+	snprintf(name, sizeof(name), "VLAN boundary test %d", vlan);
 
-	if (expected_result == 0) {
-		assert(result == 0);
-		assert(iface.vlan == vlan);
+	if (file == NULL) {
+		passed = 0;
 	} else {
-		assert(result == -1);
+		if (fprintf(file,
+					"interface eth0\n"
+					"ip 192.168.1.10\n"
+					"mask 255.255.255.0\n"
+					"gateway 192.168.1.1\n"
+					"vlan %d\n"
+					"mtu 1500\n", vlan) < 0) {
+			passed = 0;
+		}
+		if (fclose(file) != 0) {
+			passed = 0;
+		}
+
+		if (passed) {
+			int result = parse_config(filename, &iface);
+			passed = result == expected_result &&
+				(expected_result != 0 || iface.vlan == vlan);
+		}
+		if (remove(filename) != 0) {
+			passed = 0;
+		}
+
 	}
 
-	assert(remove(filename) == 0);
-
-	printf("PASS: VLAN boundary test %d\n", vlan);
+	record_test(name, passed);
 }
 
 /*
- * Test MTU boundary values using a temporary configuration file.
- *
- * Parameters:
- *   mtu             - MTU value to test.
- *   expected_result - Expected parser return value:
- *                     0 for valid input, -1 for invalid input.
- *
- * Verifies that the parser accepts MTU values within the supported
- * range (576-9000) and rejects values outside that range.
- *
- * For valid input, also verifies that the parsed MTU is stored correctly.
+ * Test MTU boundaries using a temporary configuration file.
+ * Expected result: 0 for valid MTUs, -1 for invalid MTUs.
  */
-
 static void test_mtu_boundary(int mtu, int expected_result)
 {
 	const char *filename = "tests/temp_mtu.conf";
-
-	FILE *file = fopen(filename, "w");
-	assert(file != NULL);
-
-	fprintf(file,
-			"interface eth0\n"
-			"ip 192.168.1.10\n"
-			"mask 255.255.255.0\n"
-			"gateway 192.168.1.1\n"
-			"vlan 10\n"
-			"mtu %d\n",
-			mtu);
-
-	assert(fclose(file) == 0);
-
+	char name[80];
 	struct Interface iface = {0};
+	int passed = 1;
+	FILE *file = fopen(filename, "w");
 
-	int result = parse_config(filename, &iface);
+	snprintf(name, sizeof(name), "MTU boundary test %d", mtu);
 
-	assert(result == expected_result);
+	if (file == NULL) {
+		passed = 0;
+	} else {
+		if (fprintf(file,
+					"interface eth0\n"
+					"ip 192.168.1.10\n"
+					"mask 255.255.255.0\n"
+					"gateway 192.168.1.1\n"
+					"vlan 10\n"
+					"mtu %d\n", mtu) < 0) {
+			passed = 0;
+		}
+		if (fclose(file) != 0) {
+			passed = 0;
+		}
 
-	if (expected_result == 0) {
-		assert(iface.mtu == mtu);
+		if (passed) {
+			int result = parse_config(filename, &iface);
+			passed = result == expected_result &&
+				(expected_result != 0 || iface.mtu == mtu);
+		}
+		if (remove(filename) != 0) {
+			passed = 0;
+		}
 	}
 
-	assert(remove(filename) == 0);
-
-	printf("PASS: MTU boundary test %d\n", mtu);
+	record_test(name, passed);
 }
 
 /*
- * Test IPv4 subnet mask validation.
- *
- * Parameters:
- *   mask            - Subnet mask string to test.
- *   expected_result - Expected parser return value:
- *                     0 for valid input, -1 for invalid input.
- *
- * Verifies that the parser accepts valid contiguous subnet masks
- * and rejects noncontiguous or malformed IPv4 subnet masks.
- *
- * For valid input, also checks that the parsed mask matches the input.
+ * Test valid, noncontiguous, and malformed IPv4 subnet masks.
+ * For valid input, also verify the stored mask string.
  */
-
 static void test_subnet_mask(const char *mask, int expected_result)
 {
 	const char *filename = "tests/temp_mask.conf";
-
-	FILE *file = fopen(filename, "w");
-	assert(file != NULL);
-
-	fprintf(file,
-			"interface eth0\n"
-			"ip 192.168.1.10\n"
-			"mask %s\n"
-			"gateway 192.168.1.1\n"
-			"vlan 10\n"
-			"mtu 1500\n",
-			mask);
-
-	assert(fclose(file) == 0);
-
+	char name[100];
 	struct Interface iface = {0};
+	int passed = 1;
+	FILE *file = fopen(filename, "w");
 
-	int result = parse_config(filename, &iface);
+	snprintf(name, sizeof(name), "Subnet mask test %s", mask);
 
-	assert(result == expected_result);
+	if (file == NULL) {
+		passed = 0;
+	} else {
+		if (fprintf(file,
+					"interface eth0\n"
+					"ip 192.168.1.10\n"
+					"mask %s\n"
+					"gateway 192.168.1.1\n"
+					"vlan 10\n"
+					"mtu 1500\n", mask) < 0) {
+			passed = 0;
+		}
+		if (fclose(file) != 0) {
+			passed = 0;
+		}
 
-	if (expected_result == 0) {
-		assert(strcmp(iface.mask, mask) == 0);
+		if (passed) {
+			int result = parse_config(filename, &iface);
+			passed = result == expected_result &&
+				(expected_result != 0 || strcmp(iface.mask, mask) == 0);
+		}
+		if (remove(filename) != 0) {
+			passed = 0;
+		}
 	}
 
-	assert(remove(filename) == 0);
-
-	printf("PASS: Subnet mask test %s\n", mask);
+	record_test(name, passed);
 }
 
-/*
- * Run the network configuration parser test suite.
- *
- * Covers:
- *   - Successful parsing of a valid configuration
- *   - Rejection of invalid IPv4 and gateway addresses
- *   - Rejection of invalid VLAN values
- *   - VLAN and MTU boundary validation
- *   - Valid and invalid IPv4 subnet masks
- *   - Duplicate gateway key detection
- *
- * Uses assert() to verify expected parser behavior.
- * Returns 0 if all assertions pass.
- */
+/* Verify that an oversized physical line is rejected. */
+static void test_long_line(void)
+{
+	test_fixture("tests/long_line.conf",
+			"Overlong configuration line rejected successfully", -1);
+}
 
+/* Verify that EOF without a final newline is accepted. */
+static void test_no_final_newline(void)
+{
+	struct Interface iface = {0};
+	int result = parse_config("tests/no_final_newline.conf", &iface);
 
+	record_test("Configuration without final newline accepted successfully",
+			result == 0 && iface.mtu == 1500);
+}
+
+/* Run all 22 test cases and return failure status to make. */
 int main(void)
 {
-	/* Test 1: Verify that a valid configuration is parsed correctly. */
-	struct Interface iface = {0};
+	/* Tests 1-4: Valid input and invalid field values. */
+	test_valid_configuration();
+	test_fixture("tests/invalid_ip.conf", "Invalid IP address rejected successfully", -1);
+	test_fixture("tests/invalid_gateway.conf", "Invalid gateway rejected successfully", -1);
+	test_fixture("tests/invalid_vlan.conf", "Invalid VLAN rejected successfully", -1);
 
-	int result = parse_config("config/network.conf", &iface);
-
-	assert(result == 0);
-	assert(strcmp(iface.name, "eth0") == 0);
-	assert(strcmp(iface.ip, "192.168.1.10") == 0);
-	assert(iface.vlan == 10);
-	assert(iface.mtu == 1500);
-
-	printf("PASS: Valid configuration parsed successfully\n");
-
-
-	/* Test 2: Reject an invalid IPv4 address. */
-	struct Interface invalid_iface = {0};
-
-	int invalid_result =
-		parse_config("tests/invalid_ip.conf", &invalid_iface);
-
-	assert(invalid_result != 0);
-
-	printf("PASS: Invalid IP address rejected successfully\n");
-
-
-	/* Test 3: Reject an invalid gateway IPv4 address. */
-	struct Interface invalid_gateway_iface = {0};
-
-	int gateway_result = parse_config(
-			"tests/invalid_gateway.conf",
-			&invalid_gateway_iface
-			);
-
-	assert(gateway_result == -1);
-
-	printf("PASS: Invalid gateway rejected successfully\n");
-
-
-	/* Test 4: Reject a VLAN ID outside the valid range. */
-	struct Interface invalid_vlan_iface = {0};
-
-	int vlan_result =
-		parse_config("tests/invalid_vlan.conf", &invalid_vlan_iface);
-
-	assert(vlan_result == -1);
-
-	printf("PASS: Invalid VLAN rejected successfully\n");
-
-
-	/* Tests 5-8: Check VLAN lower and upper boundaries. */
+	/* Tests 5-8: VLAN boundary values. */
 	test_vlan_boundary(0, -1);
 	test_vlan_boundary(1, 0);
 	test_vlan_boundary(4094, 0);
 	test_vlan_boundary(4095, -1);
 
-
-	/* Tests 9-12: Check MTU lower and upper boundaries. */
+	/* Tests 9-12: MTU boundary values. */
 	test_mtu_boundary(575, -1);
 	test_mtu_boundary(576, 0);
 	test_mtu_boundary(9000, 0);
 	test_mtu_boundary(9001, -1);
 
-	/* Tests 13-16: Accept valid contiguous subnet masks. */
+	/* Tests 13-19: Valid and invalid subnet masks. */
 	test_subnet_mask("255.255.255.0", 0);
 	test_subnet_mask("255.255.255.128", 0);
 	test_subnet_mask("255.255.255.192", 0);
 	test_subnet_mask("255.255.0.0", 0);
-
-	/* Tests 17-19: Reject invalid or malformed subnet masks. */
 	test_subnet_mask("255.0.255.0", -1);
 	test_subnet_mask("255.255.255.1", -1);
 	test_subnet_mask("255.255.255.256", -1);
 
-	/*
-	 * Test 20: Reject duplicate gateway keys, even when the first
-	 * gateway value is invalid and the second value is valid.
-	 */
-	struct Interface duplicate_gateway_iface = {0};
+	/* Test 20: Duplicate gateway key. */
+	test_fixture("tests/duplicate_gateway.conf",
+			"Duplicate gateway rejected successfully", -1);
 
-	int duplicate_result = parse_config(
-			"tests/duplicate_gateway.conf",
-			&duplicate_gateway_iface
-			);
+	/* Tests 21-22: Input-buffer and EOF edge cases. */
+	test_long_line();
+	test_no_final_newline();
 
-	assert(duplicate_result == -1);
-
-	printf("PASS: Duplicate gateway rejected successfully\n");
-
-	return 0;
+	print_test_summary();
+	return tests_failed == 0 ? 0 : 1;
 }
