@@ -81,7 +81,7 @@ Run tests with AddressSanitizer and UndefinedBehaviorSanitizer:
 make sanitize
 ```
 
-The current test suite contains 22 test cases covering valid configurations, invalid values, boundary conditions, subnet masks, duplicate keys, overlong lines, and missing final newlines.
+The current test suite contains 24 test cases covering valid configurations, invalid values, boundary conditions, subnet masks, duplicate keys, overlong lines, and missing final newlines.
 
 ## Project Structure
 
