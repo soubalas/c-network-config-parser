@@ -203,7 +203,7 @@ static void test_no_final_newline(void)
 			result == 0 && iface.mtu == 1500);
 }
 
-/* Run all 22 test cases and return failure status to make. */
+/* Run all 23 test cases and return failure status to make. */
 int main(void)
 {
 	/* Tests 1-4: Valid input and invalid field values. */
@@ -240,6 +240,11 @@ int main(void)
 	/* Tests 21-22: Input-buffer and EOF edge cases. */
 	test_long_line();
 	test_no_final_newline();
+
+	/* Test 23: Reject a configuration missing a required key. */
+	test_fixture("tests/missing_interface.conf",
+			"Missing interface key rejected successfully", -1);
+
 
 	print_test_summary();
 	return tests_failed == 0 ? 0 : 1;
