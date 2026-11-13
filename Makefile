@@ -20,7 +20,7 @@ $(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -o $@
 
 $(TEST_TARGET): $(TEST_OBJECT) parser.o
-	$(CC) $(TEST_OBJECT) parser.o -o $@
+	$(CC) $(TEST_OBJECT) parser.o -o $@ $(LDFLAGS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
@@ -39,3 +39,10 @@ clean:
 debug:
 	$(MAKE) clean
 	$(MAKE) test CFLAGS="$(CFLAGS) -DDEBUG"
+
+# Rebuild and run tests with memory and undefined-behavior sanitizers.
+.PHONY: sanitize
+
+sanitize:
+	$(MAKE) clean
+	$(MAKE) test CFLAGS="$(CFLAGS) -O1 -fno-omit-frame-pointer -fsanitize=address,undefined" LDFLAGS="$(LDFLAGS) -fsanitize=address,undefined"
