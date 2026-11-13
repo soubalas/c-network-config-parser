@@ -143,8 +143,10 @@ int parse_config(const char *filename, struct Interface *iface)
 			config_valid = 0;
 		}
 		else {
+                #ifdef DEBUG
 			printf("Key   : %s\n", key);
 			printf("Value : %s\n", value);
+                #endif
 
 			/* Validate the interface name and its buffer length. */
 			if (strcmp(key, "interface") == 0)

@@ -32,3 +32,10 @@ test: $(TEST_TARGET)
 
 clean:
 	rm -f $(OBJECTS) $(DEPS) $(TEST_OBJECT) $(TEST_OBJECT:.o=.d) $(TARGET) $(TEST_TARGET)
+
+# Rebuild and run tests with DEBUG logging enabled.
+.PHONY: debug
+
+debug:
+	$(MAKE) clean
+	$(MAKE) test CFLAGS="$(CFLAGS) -DDEBUG"
